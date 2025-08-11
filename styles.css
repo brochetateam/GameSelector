@@ -252,11 +252,39 @@ body {
     .navbar {
         flex-direction: column;
         gap: 15px;
+        padding: 10px;
     }
     
     .nav-buttons {
         width: 100%;
         justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .nav-buttons .btn {
+        font-size: 12px;
+        padding: 0 10px;
+        margin: 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .games-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .player-chip {
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+    
+    .nav-buttons .btn {
+        font-size: 11px;
+        padding: 0 8px;
+    }
+    
+    .section-title {
+        font-size: 16px;
     }
 }
 

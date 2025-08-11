@@ -153,11 +153,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('games-grid');
         container.innerHTML = '';
         
-        // Filtra juegos que incluyan a TODOS los jugadores seleccionados
+        // Filtra juegos que puedan jugarse SOLO con los jugadores seleccionados
         const filteredGames = appState.games.filter(game => {
-            return appState.selectedPlayers.every(playerId => 
+            // El juego debe tener TODOS los jugadores seleccionados
+            const hasAllSelected = appState.selectedPlayers.every(playerId => 
                 game.players.includes(playerId)
             );
+            
+            // Y además, el juego NO debe requerir jugadores adicionales
+            const hasNoExtraPlayers = game.players.every(playerId => 
+                appState.selectedPlayers.includes(playerId)
+            );
+            
+            return hasAllSelected && hasNoExtraPlayers;
         });
         
         if (filteredGames.length === 0) {
