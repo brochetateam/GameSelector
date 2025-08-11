@@ -1,19 +1,60 @@
 :root {
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     --xbox-green: #107c10;
-    --xbox-green-light: #4CAF50;
-    --xbox-dark: #0e0e0e;
-    --xbox-dark-light: #1a1a1a;
-    --xbox-light: #f2f2f2;
-    --xbox-grey: #8c8c8c;
+    --xbox-green-light: #9BF00B;
+    --xbox-white: #ffffff;
+    --xbox-black: #000000;
+    --xbox-light-gray: #E6E6E6;
+    --xbox-mid-gray: #737373;
+    --xbox-dark-gray: #505050;
 }
 
 body {
-    background-color: var(--xbox-dark);
-    color: var(--xbox-light);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-family);
     margin: 0;
     padding: 0;
     line-height: 1.6;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Light Mode (default) */
+body {
+    --bg-color: var(--xbox-light-gray);
+    --text-color: var(--xbox-black);
+    --card-bg-color: var(--xbox-white);
+    --input-border-color: var(--xbox-mid-gray);
+    --input-focus-color: var(--xbox-green);
+    --btn-bg-color: var(--xbox-green);
+    --btn-text-color: var(--xbox-white);
+    --navbar-bg-color: var(--xbox-white);
+    --section-title-color: var(--xbox-green);
+    --chip-bg-color: #e0e0e0;
+    --chip-selected-bg-color: var(--xbox-green);
+    --chip-text-color: var(--xbox-black);
+    --chip-selected-text-color: var(--xbox-white);
+}
+
+/* Dark Mode */
+body.dark-mode {
+    --bg-color: var(--xbox-black);
+    --text-color: var(--xbox-white);
+    --card-bg-color: var(--xbox-dark-gray);
+    --input-border-color: var(--xbox-mid-gray);
+    --input-focus-color: var(--xbox-green-light);
+    --btn-bg-color: var(--xbox-green);
+    --btn-text-color: var(--xbox-white);
+    --navbar-bg-color: var(--xbox-dark-gray);
+    --section-title-color: var(--xbox-green-light);
+    --chip-bg-color: #333;
+    --chip-selected-bg-color: var(--xbox-green);
+    --chip-text-color: var(--xbox-white);
+    --chip-selected-text-color: var(--xbox-white);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
 }
 
 #auth-screen {
@@ -22,24 +63,21 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8));
+    background: rgba(0, 0, 0, 0.8);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
 }
 
-.auth-container {
-    width: 100%;
-    max-width: 400px;
-    padding: 20px;
-}
-
 .card {
-    background-color: var(--xbox-dark-light);
+    background-color: var(--card-bg-color);
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+    margin: 20px;
 }
 
 .card-content {
@@ -56,80 +94,110 @@ body {
 
 .input-field {
     margin-bottom: 20px;
+    position: relative;
 }
 
 .input-field label {
-    color: var(--xbox-grey);
+    color: var(--input-border-color);
+    position: absolute;
+    top: 10px;
+    left: 0;
+    font-size: 16px;
+    pointer-events: none;
+    transition: all 0.2s ease-out;
 }
 
 .input-field input {
-    color: var(--xbox-light);
-    border-bottom: 1px solid var(--xbox-grey);
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--input-border-color);
+    color: var(--text-color);
+    font-size: 16px;
+    padding: 10px 0;
+    transition: border-bottom-color 0.3s;
 }
 
 .input-field input:focus {
-    border-bottom: 1px solid var(--xbox-green) !important;
-    box-shadow: 0 1px 0 0 var(--xbox-green) !important;
+    outline: none;
+    border-bottom-color: var(--input-focus-color);
 }
 
-.input-field input:focus + label {
-    color: var(--xbox-green) !important;
+.input-field input:focus + label,
+.input-field input:not(:placeholder-shown) + label {
+    top: -14px;
+    font-size: 12px;
+    color: var(--input-focus-color);
 }
 
 .btn {
-    background-color: var(--xbox-green);
-    color: white;
+    background-color: var(--btn-bg-color);
+    color: var(--btn-text-color);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
     transition: all 0.3s;
+    display: inline-block;
+    text-align: center;
 }
 
 .btn:hover {
-    background-color: var(--xbox-green-light);
+    opacity: 0.9;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 #main-app {
-    padding: 15px;
+    padding-top: 70px; /* Space for fixed navbar */
 }
 
 #main-app.hide {
     display: none;
 }
 
-/* Navigation */
 .navbar {
-    background-color: var(--xbox-dark-light);
-    padding: 15px;
+    background-color: var(--navbar-bg-color);
+    padding: 0 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid var(--xbox-green);
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 100;
+    height: 60px;
 }
 
 .nav-title {
-    font-size: 20px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
     color: var(--xbox-green);
 }
 
 .nav-buttons {
     display: flex;
     gap: 10px;
+    align-items: center;
 }
 
-/* Player Selector Section */
+.theme-switcher {
+    cursor: pointer;
+    font-size: 24px;
+    color: var(--text-color);
+}
+
 .section-title {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
-    margin: 20px 0 10px 0;
-    color: var(--xbox-green);
-    border-left: 3px solid var(--xbox-green);
+    margin: 20px 0 15px 0;
+    color: var(--section-title-color);
+    border-left: 4px solid var(--section-title-color);
     padding-left: 10px;
 }
 
@@ -141,7 +209,8 @@ body {
 }
 
 .player-chip {
-    background: #333;
+    background: var(--chip-bg-color);
+    color: var(--chip-text-color);
     border-radius: 20px;
     padding: 8px 15px;
     cursor: pointer;
@@ -150,37 +219,39 @@ body {
     align-items: center;
     gap: 8px;
     user-select: none;
+    font-weight: 500;
 }
 
 .player-chip.selected {
-    background: var(--xbox-green);
-    box-shadow: 0 0 10px rgba(16, 124, 16, 0.5);
+    background: var(--chip-selected-bg-color);
+    color: var(--chip-selected-text-color);
+    box-shadow: 0 0 10px rgba(16, 124, 16, 0.7);
 }
 
-.player-chip i {
-    font-size: 16px;
+.player-chip .icon {
+    font-size: 18px;
 }
 
-/* Games Grid */
 .games-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
     margin-bottom: 30px;
 }
 
 .game-card {
-    background: var(--xbox-dark-light);
+    background: var(--card-bg-color);
     border-radius: 8px;
     overflow: hidden;
-    transition: transform 0.3s;
+    transition: transform 0.3s, box-shadow 0.3s;
     cursor: pointer;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .game-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     border-color: var(--xbox-green);
 }
 
@@ -192,16 +263,16 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--xbox-grey);
+    color: var(--xbox-mid-gray);
 }
 
 .game-info {
-    padding: 10px;
+    padding: 15px;
 }
 
 .game-title {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 16px;
     margin-bottom: 5px;
     white-space: nowrap;
     overflow: hidden;
@@ -209,122 +280,57 @@ body {
 }
 
 .game-platform {
-    font-size: 12px;
-    color: var(--xbox-grey);
+    font-size: 13px;
+    color: var(--xbox-mid-gray);
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
-/* Dashboard */
-.stats-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.stat-card {
-    background: var(--xbox-dark-light);
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.stat-title {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 15px;
-    color: var(--xbox-green);
-    border-bottom: 1px solid #333;
-    padding-bottom: 8px;
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
-    .games-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    }
-    
-    .stats-container {
-        grid-template-columns: 1fr;
-    }
-    
     .navbar {
         flex-direction: column;
-        gap: 15px;
+        height: auto;
         padding: 10px;
     }
-    
     .nav-buttons {
-        width: 100%;
-        justify-content: center;
+        margin-top: 10px;
         flex-wrap: wrap;
+        justify-content: center;
     }
-    
-    .nav-buttons .btn {
-        font-size: 12px;
-        padding: 0 10px;
-        margin: 2px;
+    #main-app {
+        padding-top: 120px; /* Adjust for taller navbar */
+    }
+    .games-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
 }
 
 @media (max-width: 480px) {
     .games-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
     }
-    
-    .player-chip {
-        font-size: 12px;
-        padding: 5px 10px;
-    }
-    
-    .nav-buttons .btn {
-        font-size: 11px;
-        padding: 0 8px;
-    }
-    
-    .section-title {
-        font-size: 16px;
-    }
-}
-
-@media (max-width: 480px) {
-    .games-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
     .player-chip {
         font-size: 14px;
         padding: 6px 12px;
+    }
+    .nav-buttons .btn {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    .section-title {
+        font-size: 18px;
     }
 }
 
 /* Utility classes */
 .hide {
-    display: none;
+    display: none !important;
 }
-
-.text-center {
-    text-align: center;
-}
-
-.mt-20 {
-    margin-top: 20px;
-}
-
-/* Loading spinner */
-.loader {
-    border: 4px solid rgba(255, 255, 255, 0.1);
-    border-left-color: var(--xbox-green);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin: 20px auto;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+.container {
+    padding: 0 20px;
+    max-width: 1200px;
+    margin: 0 auto;
 }

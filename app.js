@@ -1,40 +1,69 @@
-// GameSelector App - Organiza tus partidas de videojuegos
+
 document.addEventListener('DOMContentLoaded', function() {
     // Configuración
     const STORAGE_KEY = "GameSelectorData";
     const DEFAULT_PASSWORD = "1234"; // Contraseña inicial
-    
+
     // Referencias DOM
     const authScreen = document.getElementById('auth-screen');
     const mainApp = document.getElementById('main-app');
     const passwordInput = document.getElementById('password');
     const loginBtn = document.getElementById('login-btn');
-    
+
     // Estado de la aplicación
     let appState = {
         players: [],
         games: [],
         history: [],
         selectedPlayers: [],
-        currentView: 'main'
+        currentView: 'main',
+        theme: 'dark' // 'light' or 'dark'
     };
-    
+
     // Variables para mantener el estado entre funciones
     let currentPlayerId = null;
     let currentGameId = null;
-    
+
     // Inicialización
     init();
-    
+
     // Event listeners
     loginBtn.addEventListener('click', handleLogin);
-    
+    passwordInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            handleLogin();
+        }
+    });
+
     // Funciones principales
     function init() {
         loadData();
+        applyTheme();
         checkAuth();
     }
-    
+
+    function applyTheme() {
+        if (appState.theme === 'dark') {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+
+    function toggleTheme() {
+        appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
+        applyTheme();
+        saveData();
+        // Re-render the current view to update the theme switcher icon
+        switch(appState.currentView) {
+            case 'main': renderMainView(); break;
+            case 'dashboard': renderDashboard(); break;
+            case 'players': renderPlayersView(); break;
+            case 'games': renderGamesView(); break;
+            case 'settings': renderSettings(); break;
+        }
+    }
+
     function checkAuth() {
         const savedHash = localStorage.getItem('passwordHash');
         if (!savedHash) {
@@ -44,23 +73,24 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    
+
     async function handleLogin() {
         const password = passwordInput.value;
         if (!password) return;
-        
+
         const hash = await hashPassword(password);
         const savedHash = localStorage.getItem('passwordHash');
-        
+
         if (hash === savedHash) {
             authScreen.classList.add('hide');
             mainApp.classList.remove('hide');
             renderMainView();
         } else {
-            M.toast({html: 'Contraseña incorrecta', classes: 'red'});
+            alert('Contraseña incorrecta');
+            passwordInput.value = '';
         }
     }
-    
+
     async function hashPassword(password) {
         const encoder = new TextEncoder();
         const data = encoder.encode(password);
@@ -68,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
-    
+
     function loadData() {
         const savedData = localStorage.getItem(STORAGE_KEY);
         if (savedData) {
@@ -78,80 +108,63 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('data.json')
                 .then(response => response.json())
                 .then(data => {
-                    appState = data;
+                    appState = {...data, theme: 'dark'}; // Set default theme
                     saveData();
-                    renderMainView();
                 })
                 .catch(error => {
                     console.error('Error cargando data.json:', error);
-                    // Si falla la carga, usar datos de ejemplo
-                    appState.players = [
-                        {id: 1, name: 'Jugador 1'},
-                        {id: 2, name: 'Jugador 2'},
-                        {id: 3, name: 'Jugador 3'},
-                        {id: 4, name: 'Jugador 4'},
-                        {id: 5, name: 'Jugador 5'}
-                    ];
-                    
-                    appState.games = [
-                        {id: 1, title: 'Halo Infinite', platform: 'Xbox', players: [1,2,3,4], completed: false},
-                        {id: 2, title: 'FIFA 25', platform: 'PlayStation', players: [1,3,5], completed: false},
-                        {id: 3, title: 'Minecraft', platform: 'PC', players: [2,4,5], completed: true},
-                        {id: 4, title: 'Fortnite', platform: 'Multiplataforma', players: [1,2,3,4,5], completed: false}
-                    ];
-                    
-                    saveData();
                 });
         }
     }
-    
+
     function saveData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
     }
-    
+
     function renderMainView() {
+        appState.currentView = 'main';
         mainApp.innerHTML = `
             <div class="navbar">
                 <div class="nav-title">GameSelector</div>
                 <div class="nav-buttons">
-                    <button class="btn xbox-green" onclick="renderMainView()">Inicio</button>
-                    <button class="btn xbox-green" onclick="renderDashboard()">Estadísticas</button>
-                    <button class="btn xbox-green" onclick="renderPlayersView()">Jugadores</button>
-                    <button class="btn xbox-green" onclick="renderGamesView()">Juegos</button>
-                    <button class="btn xbox-green" onclick="renderSettings()">Configuración</button>
+                    <button class="btn" onclick="renderMainView()"><i class="material-icons">home</i></button>
+                    <button class="btn" onclick="renderDashboard()"><i class="material-icons">bar_chart</i></button>
+                    <button class="btn" onclick="renderPlayersView()"><i class="material-icons">people</i></button>
+                    <button class="btn" onclick="renderGamesView()"><i class="material-icons">videogame_asset</i></button>
+                    <button class="btn" onclick="renderSettings()"><i class="material-icons">settings</i></button>
+                    <div class="theme-switcher" onclick="toggleTheme()">
+                        <i class="material-icons">${appState.theme === 'dark' ? 'wb_sunny' : 'nights_stay'}</i>
+                    </div>
                 </div>
             </div>
-            
             <div class="container">
                 <h5 class="section-title">SELECCIONA JUGADORES</h5>
                 <div class="player-selector" id="player-selector"></div>
-                
                 <h5 class="section-title">JUEGOS DISPONIBLES</h5>
                 <div class="games-grid" id="games-grid"></div>
             </div>
         `;
-        
         renderPlayerChips();
         renderGames();
     }
-    
+
     function renderPlayerChips() {
         const container = document.getElementById('player-selector');
+        if (!container) return;
         container.innerHTML = '';
-        
         appState.players.forEach(player => {
             const isSelected = appState.selectedPlayers.includes(player.id);
             const chip = document.createElement('div');
             chip.className = `player-chip ${isSelected ? 'selected' : ''}`;
             chip.innerHTML = `
                 ${player.name}
-                <i class="material-icons">${isSelected ? 'check' : 'add'}</i>
+                <i class="material-icons icon">${isSelected ? 'check' : 'add'}</i>
             `;
             chip.onclick = () => togglePlayer(player.id);
             container.appendChild(chip);
         });
     }
-    
+
     function togglePlayer(playerId) {
         const index = appState.selectedPlayers.indexOf(playerId);
         if (index === -1) {
@@ -163,27 +176,22 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPlayerChips();
         renderGames();
     }
-    
+
     function renderGames() {
         const container = document.getElementById('games-grid');
+        if (!container) return;
         container.innerHTML = '';
-        
-        // Filtra juegos que incluyan a TODOS los jugadores seleccionados
         const filteredGames = appState.games.filter(game => {
-            return appState.selectedPlayers.every(playerId => 
+            return appState.selectedPlayers.every(playerId =>
                 game.players.includes(playerId)
             );
         });
-        
+
         if (filteredGames.length === 0) {
-            container.innerHTML = `
-                <div class="center" style="grid-column: 1/-1; padding: 20px;">
-                    <p>No hay juegos disponibles para los jugadores seleccionados</p>
-                </div>
-            `;
+            container.innerHTML = `<p style="grid-column: 1 / -1; text-align: center;">No hay juegos disponibles para los jugadores seleccionados.</p>`;
             return;
         }
-        
+
         filteredGames.forEach(game => {
             const gameCard = document.createElement('div');
             gameCard.className = 'game-card';
@@ -193,515 +201,440 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="game-info">
                     <div class="game-title">${game.title}</div>
-                    <div class="game-platform">
-                        <i class="material-icons">${getPlatformIcon(game.platform)}</i>
-                        ${game.platform}
-                    </div>
+                    <div class="game-platform">${game.platform}</div>
+                    ${game.stats ? `
+                        <div class="game-stats">
+                            <span>Jugadas: ${game.stats.playedCount}</span>
+                            <span>Victorias: ${game.stats.winCount}</span>
+                            <span>Última vez: ${game.stats.lastPlayed}</span>
+                        </div>
+                    ` : ''}
                 </div>
             `;
             container.appendChild(gameCard);
         });
     }
-    
-    function getPlatformIcon(platform) {
-        if (platform.includes('Xbox')) return 'sports_esports';
-        if (platform.includes('PlayStation')) return 'videogame_asset';
-        if (platform.includes('PC')) return 'computer';
-        return 'gamepad';
-    }
-    
+
     function renderDashboard() {
-        // Implementar dashboard con estadísticas
+        appState.currentView = 'dashboard';
         mainApp.innerHTML = `
             <div class="navbar">
                 <div class="nav-title">Estadísticas</div>
                 <div class="nav-buttons">
-                    <button class="btn xbox-green" onclick="renderMainView()">Volver</button>
-                </div>
-            </div>
-            
-            <div class="stats-container">
-                <div class="stat-card">
-                    <h6 class="stat-title">Juegos por Plataforma</h6>
-                    <canvas id="platform-chart"></canvas>
-                </div>
-                
-                <div class="stat-card">
-                    <h6 class="stat-title">Estado de Juegos</h6>
-                    <canvas id="status-chart"></canvas>
-                </div>
-                
-                <div class="stat-card">
-                    <h6 class="stat-title">Jugadores Más Activos</h6>
-                    <canvas id="players-chart"></canvas>
-                </div>
-            </div>
-        `;
-        
-        // TODO: Implementar gráficos con Chart.js
-    }
-    
-    function renderPlayersView() {
-        // Implementar gestión de jugadores
-        mainApp.innerHTML = `
-            <div class="navbar">
-                <div class="nav-title">Gestión de Jugadores</div>
-                <div class="nav-buttons">
-                    <button class="btn xbox-green" onclick="renderMainView()">Volver</button>
-                    <button class="btn xbox-green" onclick="openPlayerForm()">
-                        <i class="material-icons">add</i>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="container">
-                <table class="highlight">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="players-list"></tbody>
-                </table>
-            </div>
-            
-            <!-- Modal para agregar/editar jugadores -->
-            <div id="player-modal" class="modal">
-                <div class="modal-content">
-                    <h4 id="modal-title">Nuevo Jugador</h4>
-                    <div class="input-field">
-                        <input type="text" id="player-name" placeholder="Nombre del jugador">
+                    <button class="btn" onclick="renderMainView()"><i class="material-icons">arrow_back</i></button>
+                    <div class="theme-switcher" onclick="toggleTheme()">
+                        <i class="material-icons">${appState.theme === 'dark' ? 'wb_sunny' : 'nights_stay'}</i>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <a href="#!" class="modal-close btn-flat">Cancelar</a>
-                    <a href="#!" class="btn xbox-green" onclick="savePlayer()">Guardar</a>
+            </div>
+            <div class="container">
+                 <div class="stats-container">
+                    <div class="stat-card">
+                        <h6 class="stat-title">Juegos por Plataforma</h6>
+                        <canvas id="platform-chart"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h6 class="stat-title">Estado de Juegos</h6>
+                        <canvas id="status-chart"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h6 class="stat-title">Jugadores Más Activos</h6>
+                        <canvas id="players-chart"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h6 class="stat-title">Juegos Jugados por Título</h6>
+                        <canvas id="games-played-chart"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h6 class="stat-title">Victorias por Título</h6>
+                        <canvas id="games-wins-chart"></canvas>
+                    </div>
                 </div>
             </div>
         `;
-        
-        M.Modal.init(document.querySelectorAll('.modal'));
-        renderPlayersList();
+        renderCharts();
     }
-    
-    function renderPlayersList() {
-        const container = document.getElementById('players-list');
-        container.innerHTML = '';
-        
-        appState.players.forEach(player => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${player.name}</td>
-                <td>
-                    <button class="btn-small blue" onclick="editPlayer(${player.id})">
-                        <i class="material-icons">edit</i>
-                    </button>
-                    <button class="btn-small red" onclick="deletePlayer(${player.id})">
-                        <i class="material-icons">delete</i>
-                    </button>
-                </td>
-            `;
-            container.appendChild(row);
-        });
-    }
-    
-    function openPlayerForm(playerId = null) {
-        const modal = document.getElementById('player-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const playerNameInput = document.getElementById('player-name');
-        
-        if (playerId) {
-            const player = appState.players.find(p => p.id === playerId);
-            if (player) {
-                modalTitle.textContent = 'Editar Jugador';
-                playerNameInput.value = player.name;
-                currentPlayerId = playerId;
-            }
-        } else {
-            modalTitle.textContent = 'Nuevo Jugador';
-            playerNameInput.value = '';
-            currentPlayerId = null;
-        }
-        
-        M.Modal.getInstance(modal).open();
-    }
-    
-    function savePlayer() {
-        const playerName = document.getElementById('player-name').value.trim();
-        if (!playerName) {
-            M.toast({html: 'El nombre del jugador es requerido', classes: 'red'});
-            return;
-        }
-        
-        if (currentPlayerId) {
-            // Editar jugador existente
-            const playerIndex = appState.players.findIndex(p => p.id === currentPlayerId);
-            if (playerIndex !== -1) {
-                appState.players[playerIndex].name = playerName;
-            }
-        } else {
-            // Crear nuevo jugador
-            const newId = Math.max(0, ...appState.players.map(p => p.id)) + 1;
-            appState.players.push({
-                id: newId,
-                name: playerName
+
+    function renderCharts() {
+        // Chart 1: Games per platform
+        const platformCtx = document.getElementById('platform-chart')?.getContext('2d');
+        if (platformCtx) {
+            const platformData = appState.games.reduce((acc, game) => {
+                acc[game.platform] = (acc[game.platform] || 0) + 1;
+                return acc;
+            }, {});
+            new Chart(platformCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(platformData),
+                    datasets: [{
+                        data: Object.values(platformData),
+                        backgroundColor: ['#107C10', '#9BF00B', '#737373', '#505050', '#E6E6E6']
+                    }]
+                }
             });
         }
-        
+
+        // Chart 2: Game status
+        const statusCtx = document.getElementById('status-chart')?.getContext('2d');
+        if (statusCtx) {
+            const completed = appState.games.filter(g => g.completed).length;
+            const inProgress = appState.games.length - completed;
+            new Chart(statusCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Completados', 'En Progreso'],
+                    datasets: [{
+                        data: [completed, inProgress],
+                        backgroundColor: ['#107C10', '#737373']
+                    }]
+                }
+            });
+        }
+
+        // Chart 3: Player activity
+        const playersCtx = document.getElementById('players-chart')?.getContext('2d');
+        if (playersCtx) {
+            const playerData = appState.players.map(player => {
+                return {
+                    name: player.name,
+                    gameCount: appState.games.filter(g => g.players.includes(player.id)).length
+                }
+            }).sort((a, b) => b.gameCount - a.gameCount);
+
+            new Chart(playersCtx, {
+                type: 'bar',
+                data: {
+                    labels: playerData.map(p => p.name),
+                    datasets: [{
+                        label: 'Juegos Jugados',
+                        data: playerData.map(p => p.gameCount),
+                        backgroundColor: '#107C10'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 4: Games played by title
+        const gamesPlayedCtx = document.getElementById('games-played-chart')?.getContext('2d');
+        if (gamesPlayedCtx) {
+            const gamePlayedData = appState.games.filter(game => game.stats && game.stats.playedCount > 0).map(game => ({
+                title: game.title,
+                playedCount: game.stats.playedCount
+            }));
+            new Chart(gamesPlayedCtx, {
+                type: 'bar',
+                data: {
+                    labels: gamePlayedData.map(g => g.title),
+                    datasets: [{
+                        label: 'Veces Jugado',
+                        data: gamePlayedData.map(g => g.playedCount),
+                        backgroundColor: '#FFD700' // Gold color
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 5: Wins by title
+        const gamesWinsCtx = document.getElementById('games-wins-chart')?.getContext('2d');
+        if (gamesWinsCtx) {
+            const gameWinsData = appState.games.filter(game => game.stats && game.stats.winCount > 0).map(game => ({
+                title: game.title,
+                winCount: game.stats.winCount
+            }));
+            new Chart(gamesWinsCtx, {
+                type: 'bar',
+                data: {
+                    labels: gameWinsData.map(g => g.title),
+                    datasets: [{
+                        label: 'Victorias',
+                        data: gameWinsData.map(g => g.winCount),
+                        backgroundColor: '#00BFFF' // Deep Sky Blue
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function renderPlayersView() {
+        appState.currentView = 'players';
+        mainApp.innerHTML = `
+            <div class="navbar">
+                <div class="nav-title">Jugadores</div>
+                <div class="nav-buttons">
+                    <button class="btn" onclick="renderMainView()"><i class="material-icons">arrow_back</i></button>
+                    <button class="btn" onclick="openPlayerForm()"><i class="material-icons">add</i></button>
+                    <div class="theme-switcher" onclick="toggleTheme()">
+                        <i class="material-icons">${appState.theme === 'dark' ? 'wb_sunny' : 'nights_stay'}</i>
+                    </div>
+                </div>
+            </div>
+            <div class="container" id="players-list">
+                <!-- Player list will be rendered here -->
+            </div>
+        `;
+        renderPlayersList();
+    }
+
+    function renderPlayersList() {
+        const container = document.getElementById('players-list');
+        if (!container) return;
+        container.innerHTML = '';
+        appState.players.forEach(player => {
+            const playerEl = document.createElement('div');
+            playerEl.className = 'list-item';
+            playerEl.innerHTML = `
+                <span>${player.name}</span>
+                <div class="actions">
+                    <button class="btn-small" onclick="editPlayer(${player.id})"><i class="material-icons">edit</i></button>
+                    <button class="btn-small red" onclick="deletePlayer(${player.id})"><i class="material-icons">delete</i></button>
+                </div>
+            `;
+            container.appendChild(playerEl);
+        });
+    }
+
+    function openPlayerForm(playerId = null) {
+        const playerName = prompt(playerId ? "Editar nombre del jugador:" : "Nuevo nombre del jugador:",
+            playerId ? appState.players.find(p => p.id === playerId).name : "");
+
+        if (playerName && playerName.trim() !== '') {
+            savePlayer(playerName.trim(), playerId);
+        }
+    }
+
+    function savePlayer(name, playerId = null) {
+        if (playerId) {
+            const player = appState.players.find(p => p.id === playerId);
+            if (player) player.name = name;
+        } else {
+            const newId = Math.max(0, ...appState.players.map(p => p.id)) + 1;
+            appState.players.push({ id: newId, name: name });
+        }
         saveData();
         renderPlayersList();
-        M.toast({html: 'Jugador guardado', classes: 'green'});
-        M.Modal.getInstance(document.getElementById('player-modal')).close();
     }
-    
+
     function editPlayer(playerId) {
         openPlayerForm(playerId);
     }
-    
+
     function deletePlayer(playerId) {
         if (confirm('¿Estás seguro de eliminar este jugador?')) {
             appState.players = appState.players.filter(p => p.id !== playerId);
-            
-            // Actualizar juegos que incluían a este jugador
             appState.games.forEach(game => {
                 game.players = game.players.filter(pId => pId !== playerId);
             });
-            
             saveData();
             renderPlayersList();
-            M.toast({html: 'Jugador eliminado', classes: 'green'});
         }
     }
-    
+
     function renderGamesView() {
-        // Implementar gestión de juegos (similar a jugadores)
+        appState.currentView = 'games';
         mainApp.innerHTML = `
             <div class="navbar">
-                <div class="nav-title">Gestión de Juegos</div>
+                <div class="nav-title">Juegos</div>
                 <div class="nav-buttons">
-                    <button class="btn xbox-green" onclick="renderMainView()">Volver</button>
-                    <button class="btn xbox-green" onclick="openGameForm()">
-                        <i class="material-icons">add</i>
-                    </button>
+                    <button class="btn" onclick="renderMainView()"><i class="material-icons">arrow_back</i></button>
+                    <button class="btn" onclick="openGameForm()"><i class="material-icons">add</i></button>
+                    <div class="theme-switcher" onclick="toggleTheme()">
+                        <i class="material-icons">${appState.theme === 'dark' ? 'wb_sunny' : 'nights_stay'}</i>
+                    </div>
                 </div>
             </div>
-            
-            <div class="container">
-                <table class="highlight">
-                    <thead>
-                        <tr>
-                            <th>Título</th>
-                            <th>Plataforma</th>
-                            <th>Jugadores</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="games-list"></tbody>
-                </table>
-            </div>
-            
-            <!-- Modal para agregar/editar juegos -->
-            <div id="game-modal" class="modal">
-                <div class="modal-content">
-                    <h4 id="game-modal-title">Nuevo Juego</h4>
-                    <div class="input-field">
-                        <input type="text" id="game-title" placeholder="Título del juego">
-                    </div>
-                    <div class="input-field">
-                        <select id="game-platform">
-                            <option value="" disabled selected>Selecciona plataforma</option>
-                            <option value="PC">PC</option>
-                            <option value="Xbox">Xbox</option>
-                            <option value="PlayStation">PlayStation</option>
-                            <option value="Nintendo Switch">Nintendo Switch</option>
-                            <option value="Multiplataforma">Multiplataforma</option>
-                        </select>
-                        <label>Plataforma</label>
-                    </div>
-                    <div>
-                        <label>Jugadores que juegan</label>
-                        <div id="game-players-selector" class="player-selector"></div>
-                    </div>
-                    <div class="switch">
-                        <label>
-                            Completado
-                            <input type="checkbox" id="game-completed">
-                            <span class="lever"></span>
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <a href="#!" class="modal-close btn-flat">Cancelar</a>
-                    <a href="#!" class="btn xbox-green" onclick="saveGame()">Guardar</a>
-                </div>
+            <div class="container" id="games-list">
+                <!-- Game list will be rendered here -->
             </div>
         `;
-        
-        M.Modal.init(document.querySelectorAll('.modal'));
-        M.FormSelect.init(document.querySelectorAll('select'));
         renderGamesList();
     }
-    
+
     function renderGamesList() {
         const container = document.getElementById('games-list');
+        if (!container) return;
         container.innerHTML = '';
-        
         appState.games.forEach(game => {
-            const playerNames = game.players.map(playerId => {
-                const player = appState.players.find(p => p.id === playerId);
-                return player ? player.name : '';
-            }).filter(name => name !== '');
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${game.title}</td>
-                <td>${game.platform}</td>
-                <td>${playerNames.join(', ')}</td>
-                <td>${game.completed ? 'Completado' : 'En progreso'}</td>
-                <td>
-                    <button class="btn-small blue" onclick="editGame(${game.id})">
-                        <i class="material-icons">edit</i>
-                    </button>
-                    <button class="btn-small red" onclick="deleteGame(${game.id})">
-                        <i class="material-icons">delete</i>
-                    </button>
-                </td>
+            const gameEl = document.createElement('div');
+            gameEl.className = 'list-item';
+            const playerNames = game.players.map(pId => appState.players.find(p => p.id === pId)?.name || '').join(', ');
+            gameEl.innerHTML = `
+                <span>${game.title} (${game.platform}) - ${game.completed ? 'Completado' : 'En progreso'}</span>
+                <div class="actions">
+                    <button class="btn-small" onclick="editGame(${game.id})"><i class="material-icons">edit</i></button>
+                    <button class="btn-small red" onclick="deleteGame(${game.id})"><i class="material-icons">delete</i></button>
+                </div>
             `;
-            container.appendChild(row);
+            container.appendChild(gameEl);
         });
     }
-    
+
     function openGameForm(gameId = null) {
-        const modal = document.getElementById('game-modal');
-        const modalTitle = document.getElementById('game-modal-title');
-        const gameTitleInput = document.getElementById('game-title');
-        const gamePlatformSelect = document.getElementById('game-platform');
-        const gameCompletedCheckbox = document.getElementById('game-completed');
-        const playersSelector = document.getElementById('game-players-selector');
-        
-        playersSelector.innerHTML = '';
-        appState.players.forEach(player => {
-            const chip = document.createElement('div');
-            chip.className = 'player-chip';
-            chip.innerHTML = `
-                ${player.name}
-                <i class="material-icons">add</i>
-            `;
-            chip.dataset.playerId = player.id;
-            chip.onclick = () => chip.classList.toggle('selected');
-            playersSelector.appendChild(chip);
+        // Simplified prompt-based form
+        const title = prompt("Título del juego:", gameId ? appState.games.find(g => g.id === gameId).title : "");
+        if (!title) return;
+        const platform = prompt("Plataforma:", gameId ? appState.games.find(g => g.id === gameId).platform : "");
+        if (!platform) return;
+        const completed = confirm("¿Juego completado?");
+
+        let selectedPlayers = [];
+        appState.players.forEach(p => {
+            if(confirm(`¿Incluir a ${p.name}?`)) {
+                selectedPlayers.push(p.id);
+            }
         });
-        
+
+        saveGame({ title, platform, completed, players: selectedPlayers }, gameId);
+    }
+
+    function saveGame(gameData, gameId = null) {
         if (gameId) {
             const game = appState.games.find(g => g.id === gameId);
-            if (game) {
-                modalTitle.textContent = 'Editar Juego';
-                gameTitleInput.value = game.title;
-                gamePlatformSelect.value = game.platform;
-                gameCompletedCheckbox.checked = game.completed;
-                
-                // Seleccionar jugadores
-                game.players.forEach(playerId => {
-                    const chip = playersSelector.querySelector(`[data-player-id="${playerId}"]`);
-                    if (chip) {
-                        chip.classList.add('selected');
-                        chip.querySelector('i').textContent = 'check';
-                    }
-                });
-                
-                currentGameId = gameId;
-            }
+            if (game) Object.assign(game, gameData);
         } else {
-            modalTitle.textContent = 'Nuevo Juego';
-            gameTitleInput.value = '';
-            gamePlatformSelect.value = '';
-            gameCompletedCheckbox.checked = false;
-            currentGameId = null;
-        }
-        
-        M.Modal.getInstance(modal).open();
-        M.FormSelect.init(gamePlatformSelect);
-    }
-    
-    function saveGame() {
-        const title = document.getElementById('game-title').value.trim();
-        const platform = document.getElementById('game-platform').value;
-        const completed = document.getElementById('game-completed').checked;
-        
-        if (!title || !platform) {
-            M.toast({html: 'Título y plataforma son requeridos', classes: 'red'});
-            return;
-        }
-        
-        const selectedPlayers = Array.from(
-            document.querySelectorAll('#game-players-selector .player-chip.selected')
-        ).map(chip => parseInt(chip.dataset.playerId));
-        
-        if (selectedPlayers.length === 0) {
-            M.toast({html: 'Selecciona al menos un jugador', classes: 'red'});
-            return;
-        }
-        
-        if (currentGameId) {
-            // Editar juego existente
-            const gameIndex = appState.games.findIndex(g => g.id === currentGameId);
-            if (gameIndex !== -1) {
-                appState.games[gameIndex] = {
-                    ...appState.games[gameIndex],
-                    title,
-                    platform,
-                    players: selectedPlayers,
-                    completed
-                };
-            }
-        } else {
-            // Crear nuevo juego
             const newId = Math.max(0, ...appState.games.map(g => g.id)) + 1;
-            appState.games.push({
-                id: newId,
-                title,
-                platform,
-                players: selectedPlayers,
-                completed
-            });
+            appState.games.push({ id: newId, ...gameData });
         }
-        
         saveData();
         renderGamesList();
-        M.toast({html: 'Juego guardado', classes: 'green'});
-        M.Modal.getInstance(document.getElementById('game-modal')).close();
     }
-    
+
     function editGame(gameId) {
         openGameForm(gameId);
     }
-    
+
     function deleteGame(gameId) {
         if (confirm('¿Estás seguro de eliminar este juego?')) {
             appState.games = appState.games.filter(g => g.id !== gameId);
             saveData();
             renderGamesList();
-            M.toast({html: 'Juego eliminado', classes: 'green'});
         }
     }
-    
+
     function renderSettings() {
+        appState.currentView = 'settings';
         mainApp.innerHTML = `
             <div class="navbar">
                 <div class="nav-title">Configuración</div>
                 <div class="nav-buttons">
-                    <button class="btn xbox-green" onclick="renderMainView()">Volver</button>
+                    <button class="btn" onclick="renderMainView()"><i class="material-icons">arrow_back</i></button>
+                    <div class="theme-switcher" onclick="toggleTheme()">
+                        <i class="material-icons">${appState.theme === 'dark' ? 'wb_sunny' : 'nights_stay'}</i>
+                    </div>
                 </div>
             </div>
-            
             <div class="container">
                 <div class="card">
                     <div class="card-content">
                         <span class="card-title">Cambiar Contraseña</span>
                         <div class="input-field">
-                            <input type="password" id="new-password" placeholder="Nueva contraseña">
+                            <input type="password" id="new-password" placeholder=" ">
+                            <label for="new-password">Nueva contraseña</label>
                         </div>
                         <div class="input-field">
-                            <input type="password" id="confirm-password" placeholder="Confirmar contraseña">
+                            <input type="password" id="confirm-password" placeholder=" ">
+                            <label for="confirm-password">Confirmar contraseña</label>
                         </div>
                     </div>
                     <div class="card-action">
-                        <button class="btn xbox-green" onclick="changePassword()">Cambiar Contraseña</button>
+                        <button class="btn" onclick="changePassword()">Cambiar</button>
                     </div>
                 </div>
-                
-                <div class="card mt-20">
+                <div class="card" style="margin-top: 20px;">
                     <div class="card-content">
                         <span class="card-title">Gestión de Datos</span>
-                        <p>Exportar o importar los datos de la aplicación usando el archivo data.json</p>
+                        <p>Exportar o importar los datos de la aplicación.</p>
                     </div>
                     <div class="card-action">
-                        <button class="btn blue" onclick="exportToDataJson()">Exportar a data.json</button>
-                        <button class="btn green" onclick="importFromDataJson()">Importar desde data.json</button>
+                        <button class="btn" onclick="exportData()">Exportar</button>
+                        <button class="btn" onclick="importData()">Importar</button>
                     </div>
                 </div>
             </div>
         `;
     }
-    
-    // Nueva función para exportar a data.json
-    function exportToDataJson() {
+
+    function changePassword() {
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        if (!newPassword || newPassword !== confirmPassword) {
+            alert('Las contraseñas no coinciden.');
+            return;
+        }
+        hashPassword(newPassword).then(hash => {
+            localStorage.setItem('passwordHash', hash);
+            alert('Contraseña actualizada.');
+        });
+    }
+
+    function exportData() {
         const dataStr = JSON.stringify(appState, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = 'data.json';
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.setAttribute('download', 'data.json');
         linkElement.click();
-        
-        M.toast({html: 'Datos exportados a data.json', classes: 'green'});
     }
-    
-    // Nueva función para importar desde data.json
-    function importFromDataJson() {
+
+    function importData() {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.json';
-        fileInput.onchange = function(e) {
+        fileInput.onchange = e => {
             const file = e.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = e => {
                 try {
                     const data = JSON.parse(e.target.result);
                     appState = data;
                     saveData();
-                    M.toast({html: 'Datos importados desde data.json', classes: 'green'});
+                    alert('Datos importados correctamente.');
                     renderMainView();
                 } catch (error) {
-                    M.toast({html: 'Error al importar data.json', classes: 'red'});
+                    alert('Error al importar el archivo.');
                 }
             };
             reader.readAsText(file);
         };
         fileInput.click();
     }
-    
-    // Funciones de gestión de datos
-    async function changePassword() {
-        const newPassword = document.getElementById('new-password').value;
-        const confirmPassword = document.getElementById('confirm-password').value;
-        
-        if (!newPassword || newPassword !== confirmPassword) {
-            M.toast({html: 'Las contraseñas no coinciden', classes: 'red'});
-            return;
-        }
-        
-        const hash = await hashPassword(newPassword);
-        localStorage.setItem('passwordHash', hash);
-        M.toast({html: 'Contraseña actualizada', classes: 'green'});
-    }
-    
-    
-    // Exponer funciones globalmente para acceso desde HTML
+
+    // Exponer funciones globalmente
+    window.toggleTheme = toggleTheme;
     window.renderMainView = renderMainView;
     window.renderDashboard = renderDashboard;
     window.renderPlayersView = renderPlayersView;
     window.renderGamesView = renderGamesView;
     window.renderSettings = renderSettings;
     window.openPlayerForm = openPlayerForm;
-    window.savePlayer = savePlayer;
     window.editPlayer = editPlayer;
     window.deletePlayer = deletePlayer;
     window.openGameForm = openGameForm;
-    window.saveGame = saveGame;
     window.editGame = editGame;
     window.deleteGame = deleteGame;
     window.changePassword = changePassword;
-    window.exportToDataJson = exportToDataJson;
-    window.importFromDataJson = importFromDataJson;
-});
-
-// Inicializar Materialize components
-document.addEventListener('DOMContentLoaded', function() {
-    M.AutoInit();
+    window.exportData = exportData;
+    window.importData = importData;
 });
