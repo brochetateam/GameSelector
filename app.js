@@ -19,6 +19,10 @@ document.addEventListener('DOMContentLoaded', function() {
         currentView: 'main'
     };
     
+    // Variables para mantener el estado entre funciones
+    let currentPlayerId = null;
+    let currentGameId = null;
+    
     // Inicialización
     init();
     
@@ -70,23 +74,34 @@ document.addEventListener('DOMContentLoaded', function() {
         if (savedData) {
             appState = JSON.parse(savedData);
         } else {
-            // Datos de ejemplo iniciales
-            appState.players = [
-                {id: 1, name: 'Jugador 1'},
-                {id: 2, name: 'Jugador 2'},
-                {id: 3, name: 'Jugador 3'},
-                {id: 4, name: 'Jugador 4'},
-                {id: 5, name: 'Jugador 5'}
-            ];
-            
-            appState.games = [
-                {id: 1, title: 'Halo Infinite', platform: 'Xbox', players: [1,2,3,4], completed: false},
-                {id: 2, title: 'FIFA 25', platform: 'PlayStation', players: [1,3,5], completed: false},
-                {id: 3, title: 'Minecraft', platform: 'PC', players: [2,4,5], completed: true},
-                {id: 4, title: 'Fortnite', platform: 'Multiplataforma', players: [1,2,3,4,5], completed: false}
-            ];
-            
-            saveData();
+            // Cargar datos iniciales desde data.json
+            fetch('data.json')
+                .then(response => response.json())
+                .then(data => {
+                    appState = data;
+                    saveData();
+                    renderMainView();
+                })
+                .catch(error => {
+                    console.error('Error cargando data.json:', error);
+                    // Si falla la carga, usar datos de ejemplo
+                    appState.players = [
+                        {id: 1, name: 'Jugador 1'},
+                        {id: 2, name: 'Jugador 2'},
+                        {id: 3, name: 'Jugador 3'},
+                        {id: 4, name: 'Jugador 4'},
+                        {id: 5, name: 'Jugador 5'}
+                    ];
+                    
+                    appState.games = [
+                        {id: 1, title: 'Halo Infinite', platform: 'Xbox', players: [1,2,3,4], completed: false},
+                        {id: 2, title: 'FIFA 25', platform: 'PlayStation', players: [1,3,5], completed: false},
+                        {id: 3, title: 'Minecraft', platform: 'PC', players: [2,4,5], completed: true},
+                        {id: 4, title: 'Fortnite', platform: 'Multiplataforma', players: [1,2,3,4,5], completed: false}
+                    ];
+                    
+                    saveData();
+                });
         }
     }
     
@@ -153,19 +168,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('games-grid');
         container.innerHTML = '';
         
-        // Filtra juegos que puedan jugarse SOLO con los jugadores seleccionados
+        // Filtra juegos que incluyan a TODOS los jugadores seleccionados
         const filteredGames = appState.games.filter(game => {
-            // El juego debe tener TODOS los jugadores seleccionados
-            const hasAllSelected = appState.selectedPlayers.every(playerId => 
+            return appState.selectedPlayers.every(playerId => 
                 game.players.includes(playerId)
             );
-            
-            // Y además, el juego NO debe requerir jugadores adicionales
-            const hasNoExtraPlayers = game.players.every(playerId => 
-                appState.selectedPlayers.includes(playerId)
-            );
-            
-            return hasAllSelected && hasNoExtraPlayers;
         });
         
         if (filteredGames.length === 0) {
@@ -299,6 +306,74 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    function openPlayerForm(playerId = null) {
+        const modal = document.getElementById('player-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const playerNameInput = document.getElementById('player-name');
+        
+        if (playerId) {
+            const player = appState.players.find(p => p.id === playerId);
+            if (player) {
+                modalTitle.textContent = 'Editar Jugador';
+                playerNameInput.value = player.name;
+                currentPlayerId = playerId;
+            }
+        } else {
+            modalTitle.textContent = 'Nuevo Jugador';
+            playerNameInput.value = '';
+            currentPlayerId = null;
+        }
+        
+        M.Modal.getInstance(modal).open();
+    }
+    
+    function savePlayer() {
+        const playerName = document.getElementById('player-name').value.trim();
+        if (!playerName) {
+            M.toast({html: 'El nombre del jugador es requerido', classes: 'red'});
+            return;
+        }
+        
+        if (currentPlayerId) {
+            // Editar jugador existente
+            const playerIndex = appState.players.findIndex(p => p.id === currentPlayerId);
+            if (playerIndex !== -1) {
+                appState.players[playerIndex].name = playerName;
+            }
+        } else {
+            // Crear nuevo jugador
+            const newId = Math.max(0, ...appState.players.map(p => p.id)) + 1;
+            appState.players.push({
+                id: newId,
+                name: playerName
+            });
+        }
+        
+        saveData();
+        renderPlayersList();
+        M.toast({html: 'Jugador guardado', classes: 'green'});
+        M.Modal.getInstance(document.getElementById('player-modal')).close();
+    }
+    
+    function editPlayer(playerId) {
+        openPlayerForm(playerId);
+    }
+    
+    function deletePlayer(playerId) {
+        if (confirm('¿Estás seguro de eliminar este jugador?')) {
+            appState.players = appState.players.filter(p => p.id !== playerId);
+            
+            // Actualizar juegos que incluían a este jugador
+            appState.games.forEach(game => {
+                game.players = game.players.filter(pId => pId !== playerId);
+            });
+            
+            saveData();
+            renderPlayersList();
+            M.toast({html: 'Jugador eliminado', classes: 'green'});
+        }
+    }
+    
     function renderGamesView() {
         // Implementar gestión de juegos (similar a jugadores)
         mainApp.innerHTML = `
@@ -398,161 +473,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function renderSettings() {
-        mainApp.innerHTML = `
-            <div class="navbar">
-                <div class="nav-title">Configuración</div>
-                <div class="nav-buttons">
-                    <button class="btn xbox-green" onclick="renderMainView()">Volver</button>
-                </div>
-            </div>
-            
-            <div class="container">
-                <div class="card">
-                    <div class="card-content">
-                        <span class="card-title">Cambiar Contraseña</span>
-                        <div class="input-field">
-                            <input type="password" id="new-password" placeholder="Nueva contraseña">
-                        </div>
-                        <div class="input-field">
-                            <input type="password" id="confirm-password" placeholder="Confirmar contraseña">
-                        </div>
-                    </div>
-                    <div class="card-action">
-                        <button class="btn xbox-green" onclick="changePassword()">Cambiar Contraseña</button>
-                    </div>
-                </div>
-                
-                <div class="card mt-20">
-                    <div class="card-content">
-                        <span class="card-title">Gestión de Datos</span>
-                        <p>Exportar o importar todos los datos de la aplicación</p>
-                    </div>
-                    <div class="card-action">
-                        <button class="btn blue" onclick="exportData()">Exportar Datos</button>
-                        <button class="btn green" onclick="document.getElementById('import-data').click()">Importar Datos</button>
-                        <input type="file" id="import-data" accept=".json" style="display:none" onchange="importData(event)">
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Funciones de gestión de datos
-    async function changePassword() {
-        const newPassword = document.getElementById('new-password').value;
-        const confirmPassword = document.getElementById('confirm-password').value;
-        
-        if (!newPassword || newPassword !== confirmPassword) {
-            M.toast({html: 'Las contraseñas no coinciden', classes: 'red'});
-            return;
-        }
-        
-        const hash = await hashPassword(newPassword);
-        localStorage.setItem('passwordHash', hash);
-        M.toast({html: 'Contraseña actualizada', classes: 'green'});
-    }
-    
-    function exportData() {
-        const dataStr = JSON.stringify(appState);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = 'GameSelectorData.json';
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-    }
-    
-    function importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                appState = data;
-                saveData();
-                M.toast({html: 'Datos importados correctamente', classes: 'green'});
-                renderMainView();
-            } catch (error) {
-                M.toast({html: 'Error al importar datos', classes: 'red'});
-            }
-        };
-        reader.readAsText(file);
-    }
-    
-    // Funciones para gestión de jugadores
-    function openPlayerForm(playerId = null) {
-        const modal = document.getElementById('player-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const playerNameInput = document.getElementById('player-name');
-        
-        if (playerId) {
-            const player = appState.players.find(p => p.id === playerId);
-            if (player) {
-                modalTitle.textContent = 'Editar Jugador';
-                playerNameInput.value = player.name;
-                currentPlayerId = playerId;
-            }
-        } else {
-            modalTitle.textContent = 'Nuevo Jugador';
-            playerNameInput.value = '';
-            currentPlayerId = null;
-        }
-        
-        M.Modal.getInstance(modal).open();
-    }
-    
-    function savePlayer() {
-        const playerName = document.getElementById('player-name').value.trim();
-        if (!playerName) {
-            M.toast({html: 'El nombre del jugador es requerido', classes: 'red'});
-            return;
-        }
-        
-        if (currentPlayerId) {
-            // Editar jugador existente
-            const playerIndex = appState.players.findIndex(p => p.id === currentPlayerId);
-            if (playerIndex !== -1) {
-                appState.players[playerIndex].name = playerName;
-            }
-        } else {
-            // Crear nuevo jugador
-            const newId = Math.max(0, ...appState.players.map(p => p.id)) + 1;
-            appState.players.push({
-                id: newId,
-                name: playerName
-            });
-        }
-        
-        saveData();
-        renderPlayersList();
-        M.toast({html: 'Jugador guardado', classes: 'green'});
-        M.Modal.getInstance(document.getElementById('player-modal')).close();
-    }
-    
-    function editPlayer(playerId) {
-        openPlayerForm(playerId);
-    }
-    
-    function deletePlayer(playerId) {
-        if (confirm('¿Estás seguro de eliminar este jugador?')) {
-            appState.players = appState.players.filter(p => p.id !== playerId);
-            
-            // Actualizar juegos que incluían a este jugador
-            appState.games.forEach(game => {
-                game.players = game.players.filter(pId => pId !== playerId);
-            });
-            
-            saveData();
-            renderPlayersList();
-            M.toast({html: 'Jugador eliminado', classes: 'green'});
-        }
-    }
-    
-    // Funciones para gestión de juegos
     function openGameForm(gameId = null) {
         const modal = document.getElementById('game-modal');
         const modalTitle = document.getElementById('game-modal-title');
@@ -667,9 +587,100 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Variables para mantener el estado entre funciones
-    let currentPlayerId = null;
-    let currentGameId = null;
+    function renderSettings() {
+        mainApp.innerHTML = `
+            <div class="navbar">
+                <div class="nav-title">Configuración</div>
+                <div class="nav-buttons">
+                    <button class="btn xbox-green" onclick="renderMainView()">Volver</button>
+                </div>
+            </div>
+            
+            <div class="container">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Cambiar Contraseña</span>
+                        <div class="input-field">
+                            <input type="password" id="new-password" placeholder="Nueva contraseña">
+                        </div>
+                        <div class="input-field">
+                            <input type="password" id="confirm-password" placeholder="Confirmar contraseña">
+                        </div>
+                    </div>
+                    <div class="card-action">
+                        <button class="btn xbox-green" onclick="changePassword()">Cambiar Contraseña</button>
+                    </div>
+                </div>
+                
+                <div class="card mt-20">
+                    <div class="card-content">
+                        <span class="card-title">Gestión de Datos</span>
+                        <p>Exportar o importar los datos de la aplicación usando el archivo data.json</p>
+                    </div>
+                    <div class="card-action">
+                        <button class="btn blue" onclick="exportToDataJson()">Exportar a data.json</button>
+                        <button class="btn green" onclick="importFromDataJson()">Importar desde data.json</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Nueva función para exportar a data.json
+    function exportToDataJson() {
+        const dataStr = JSON.stringify(appState, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'data.json';
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+        
+        M.toast({html: 'Datos exportados a data.json', classes: 'green'});
+    }
+    
+    // Nueva función para importar desde data.json
+    function importFromDataJson() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+        fileInput.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    appState = data;
+                    saveData();
+                    M.toast({html: 'Datos importados desde data.json', classes: 'green'});
+                    renderMainView();
+                } catch (error) {
+                    M.toast({html: 'Error al importar data.json', classes: 'red'});
+                }
+            };
+            reader.readAsText(file);
+        };
+        fileInput.click();
+    }
+    
+    // Funciones de gestión de datos
+    async function changePassword() {
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        
+        if (!newPassword || newPassword !== confirmPassword) {
+            M.toast({html: 'Las contraseñas no coinciden', classes: 'red'});
+            return;
+        }
+        
+        const hash = await hashPassword(newPassword);
+        localStorage.setItem('passwordHash', hash);
+        M.toast({html: 'Contraseña actualizada', classes: 'green'});
+    }
+    
     
     // Exponer funciones globalmente para acceso desde HTML
     window.renderMainView = renderMainView;
@@ -686,8 +697,8 @@ document.addEventListener('DOMContentLoaded', function() {
     window.editGame = editGame;
     window.deleteGame = deleteGame;
     window.changePassword = changePassword;
-    window.exportData = exportData;
-    window.importData = importData;
+    window.exportToDataJson = exportToDataJson;
+    window.importFromDataJson = importFromDataJson;
 });
 
 // Inicializar Materialize components
