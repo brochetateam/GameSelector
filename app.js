@@ -24,6 +24,30 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPlayerId = null;
     let currentGameId = null;
 
+    // Constantes para iconos y plataformas
+    const PLAYER_ICONS = [
+        'person', 'face', 'sentiment_very_satisfied', 'sports_esports', 'star',
+        'accessibility_new', 'emoji_events', 'military_tech', 'psychology', 'science'
+    ];
+
+    const CONSOLE_PLATFORMS = [
+        { name: 'Xbox', icon: 'stadia_controller' },
+        { name: 'PlayStation', icon: 'stadia_controller' },
+        { name: 'PC', icon: 'desktop_windows' },
+        { name: 'Nintendo Switch', icon: 'stadia_controller' },
+        { name: 'Mobile', icon: 'phone_android' },
+        { name: 'Multiplataforma', icon: 'devices_other' }
+    ];
+
+    const PLATFORM_ICONS = {
+        'Xbox': '🎮', // Placeholder, will need custom icons or better Material Icons
+        'PlayStation': '🎮', // Placeholder
+        'PC': '💻',
+        'Nintendo Switch': '📱',
+        'Mobile': '📱',
+        'Multiplataforma': '🌐'
+    };
+
     // Inicialización
     init();
 
@@ -377,6 +401,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    let editingPlayerId = null; // Track which player is being edited
+    // let editingGameId = null; // Track which game is being edited (already declared above)
+
     function renderPlayersView() {
         appState.currentView = 'players';
         mainApp.innerHTML = `
@@ -384,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="nav-title">Jugadores</div>
                 <div class="nav-buttons">
                     <button class="btn" onclick="renderMainView()"><i class="material-icons">arrow_back</i></button>
-                    <button class="btn" onclick="openPlayerForm()"><i class="material-icons">add</i></button>
+                    <button class="btn" onclick="addPlayer()"><i class="material-icons">add</i></button>
                     <div class="theme-switcher" onclick="toggleTheme()">
                         <i class="material-icons">${appState.theme === 'dark' ? 'wb_sunny' : 'nights_stay'}</i>
                     </div>
@@ -404,50 +431,99 @@ document.addEventListener('DOMContentLoaded', function() {
         appState.players.forEach(player => {
             const playerEl = document.createElement('div');
             playerEl.className = 'list-item';
-            playerEl.innerHTML = `
-                <span>${player.name}</span>
-                <div class="actions">
-                    <button class="btn-small" onclick="editPlayer(${player.id})"><i class="material-icons">edit</i></button>
-                    <button class="btn-small red" onclick="deletePlayer(${player.id})"><i class="material-icons">delete</i></button>
-                </div>
-            `;
+
+            if (editingPlayerId === player.id) {
+                // Edit mode
+                const iconOptions = PLAYER_ICONS.map(icon => `<option value="${icon}" ${player.icon === icon ? 'selected' : ''}>${icon}</option>`).join('');
+                playerEl.innerHTML = `
+                    <div class="edit-player-container">
+                        <input type="text" id="edit-player-name-${player.id}" value="${player.name}" placeholder="Nombre del jugador">
+                        <select id="edit-player-icon-${player.id}">
+                            ${iconOptions}
+                        </select>
+                        <div class="actions">
+                            <button class="btn-small green" onclick="savePlayerInline(${player.id})"><i class="material-icons">done</i></button>
+                            <button class="btn-small orange" onclick="cancelEditPlayer()"><i class="material-icons">cancel</i></button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // View mode
+                playerEl.innerHTML = `
+                    <div class="player-display">
+                        <i class="material-icons player-icon">${player.icon || 'person'}</i>
+                        <span>${player.name}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-small" onclick="editPlayerInline(${player.id})"><i class="material-icons">edit</i></button>
+                        <button class="btn-small red" onclick="deletePlayer(${player.id})"><i class="material-icons">delete</i></button>
+                    </div>
+                `;
+            }
             container.appendChild(playerEl);
         });
+        
+        // Agregar botón para nuevo jugador
+        const newPlayerBtn = document.createElement('div');
+        newPlayerBtn.className = 'list-item';
+        newPlayerBtn.innerHTML = `
+            <button class="btn add-game-btn" onclick="addPlayer()">
+                <i class="material-icons">add</i> Agregar Nuevo Jugador
+            </button>
+        `;
+        container.appendChild(newPlayerBtn);
     }
 
-    function openPlayerForm(playerId = null) {
-        const playerName = prompt(playerId ? "Editar nombre del jugador:" : "Nuevo nombre del jugador:",
-            playerId ? appState.players.find(p => p.id === playerId).name : "");
-
-        if (playerName && playerName.trim() !== '') {
-            savePlayer(playerName.trim(), playerId);
-        }
-    }
-
-    function savePlayer(name, playerId = null) {
-        if (playerId) {
-            const player = appState.players.find(p => p.id === playerId);
-            if (player) player.name = name;
-        } else {
-            const newId = Math.max(0, ...appState.players.map(p => p.id)) + 1;
-            appState.players.push({ id: newId, name: name });
-        }
+    function addPlayer() {
+        const newId = appState.players.length > 0 ? Math.max(...appState.players.map(p => p.id)) + 1 : 1;
+        const newPlayer = { id: newId, name: 'Nuevo Jugador', icon: 'person' };
+        appState.players.push(newPlayer);
         saveData();
+        editingPlayerId = newId; // Immediately go into edit mode for the new player
         renderPlayersList();
     }
 
-    function editPlayer(playerId) {
-        openPlayerForm(playerId);
+    function editPlayerInline(playerId) {
+        editingPlayerId = playerId;
+        renderPlayersList();
+    }
+
+    function savePlayerInline(playerId) {
+        const nameInput = document.getElementById(`edit-player-name-${playerId}`);
+        const iconSelect = document.getElementById(`edit-player-icon-${playerId}`);
+        const newName = nameInput.value.trim();
+        const newIcon = iconSelect.value;
+
+        if (newName === '') {
+            alert('El nombre del jugador no puede estar vacío.');
+            return;
+        }
+
+        const player = appState.players.find(p => p.id === playerId);
+        if (player) {
+            player.name = newName;
+            player.icon = newIcon;
+        }
+        saveData();
+        editingPlayerId = null; // Exit edit mode
+        renderPlayersList();
+    }
+
+    function cancelEditPlayer() {
+        editingPlayerId = null; // Exit edit mode without saving
+        renderPlayersList();
     }
 
     function deletePlayer(playerId) {
-        if (confirm('¿Estás seguro de eliminar este jugador?')) {
+        if (confirm('¿Estás seguro de eliminar este jugador? Esto también lo eliminará de todos los juegos.')) {
             appState.players = appState.players.filter(p => p.id !== playerId);
+            // Also remove player from all games
             appState.games.forEach(game => {
                 game.players = game.players.filter(pId => pId !== playerId);
             });
             saveData();
             renderPlayersList();
+            renderGames(); // Re-render games as player data might have changed
         }
     }
 
@@ -475,37 +551,122 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('games-list');
         if (!container) return;
         container.innerHTML = '';
+        
         appState.games.forEach(game => {
             const gameEl = document.createElement('div');
             gameEl.className = 'list-item';
-            const playerNames = game.players.map(pId => appState.players.find(p => p.id === pId)?.name || '').join(', ');
-            gameEl.innerHTML = `
-                <span>${game.title} (${game.platform}) - ${game.completed ? 'Completado' : 'En progreso'}</span>
-                <div class="actions">
-                    <button class="btn-small" onclick="editGame(${game.id})"><i class="material-icons">edit</i></button>
-                    <button class="btn-small red" onclick="deleteGame(${game.id})"><i class="material-icons">delete</i></button>
-                </div>
-            `;
+            
+            // Crear opciones de plataforma
+            const platformOptions = CONSOLE_PLATFORMS.map(platform => 
+                `<option value="${platform.name}" ${game.platform === platform.name ? 'selected' : ''}>${platform.name}</option>`
+            ).join('');
+            
+            // Crear checkboxes para jugadores
+            const playerCheckboxes = appState.players.map(player => `
+                <label class="player-checkbox">
+                    <input type="checkbox" id="game-player-${game.id}-${player.id}" 
+                           ${game.players.includes(player.id) ? 'checked' : ''}>
+                    <i class="material-icons player-icon">${player.icon || 'person'}</i>
+                    ${player.name}
+                </label>
+            `).join('');
+            
+            if (editingGameId === game.id) {
+                // Modo edición
+                gameEl.innerHTML = `
+                    <div class="edit-game-container">
+                        <div class="form-group">
+                            <label>Título:</label>
+                            <input type="text" id="edit-game-title-${game.id}" value="${game.title}" placeholder="Título del juego">
+                        </div>
+                        <div class="form-group">
+                            <label>Plataforma:</label>
+                            <select id="edit-game-platform-${game.id}">
+                                ${platformOptions}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="edit-game-completed-${game.id}" ${game.completed ? 'checked' : ''}>
+                                Completado
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Jugadores:</label>
+                            <div class="player-checkboxes">
+                                ${playerCheckboxes}
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-small green" onclick="saveGameInline(${game.id})"><i class="material-icons">done</i></button>
+                            <button class="btn-small orange" onclick="cancelEditGame()"><i class="material-icons">cancel</i></button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Modo visualización
+                const playerNames = game.players.map(pId => appState.players.find(p => p.id === pId)?.name || '').join(', ');
+                const playerIcons = game.players.map(pId => {
+                    const player = appState.players.find(p => p.id === pId);
+                    return player ? `<i class="material-icons player-icon-small">${player.icon || 'person'}</i>` : '';
+                }).join('');
+                
+                gameEl.innerHTML = `
+                    <div class="game-display">
+                        <div class="game-info">
+                            <span class="game-title">${game.title}</span>
+                            <span class="game-platform">${game.platform}</span>
+                            <span class="game-status ${game.completed ? 'completed' : 'in-progress'}">
+                                ${game.completed ? 'Completado' : 'En progreso'}
+                            </span>
+                            <div class="game-players">
+                                <span class="players-label">Jugadores:</span>
+                                <span class="players-list">${playerNames}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-small" onclick="editGameInline(${game.id})"><i class="material-icons">edit</i></button>
+                        <button class="btn-small red" onclick="deleteGame(${game.id})"><i class="material-icons">delete</i></button>
+                    </div>
+                `;
+            }
             container.appendChild(gameEl);
         });
+        
+        // Agregar formulario para nuevo juego si no estamos editando un juego existente
+        if (editingGameId === null) {
+            const newGameEl = document.createElement('div');
+            newGameEl.className = 'list-item';
+            newGameEl.innerHTML = `
+                <button class="btn add-game-btn" onclick="openGameForm()">
+                    <i class="material-icons">add</i> Agregar Nuevo Juego
+                </button>
+            `;
+            container.appendChild(newGameEl);
+        }
     }
 
+    let editingGameId = null; // Track which game is being edited
+
     function openGameForm(gameId = null) {
-        // Simplified prompt-based form
-        const title = prompt("Título del juego:", gameId ? appState.games.find(g => g.id === gameId).title : "");
-        if (!title) return;
-        const platform = prompt("Plataforma:", gameId ? appState.games.find(g => g.id === gameId).platform : "");
-        if (!platform) return;
-        const completed = confirm("¿Juego completado?");
-
-        let selectedPlayers = [];
-        appState.players.forEach(p => {
-            if(confirm(`¿Incluir a ${p.name}?`)) {
-                selectedPlayers.push(p.id);
-            }
-        });
-
-        saveGame({ title, platform, completed, players: selectedPlayers }, gameId);
+        if (gameId === null) {
+            // Crear un nuevo juego con valores predeterminados
+            const newId = appState.games.length > 0 ? Math.max(...appState.games.map(g => g.id)) + 1 : 1;
+            const newGame = {
+                id: newId,
+                title: 'Nuevo Juego',
+                platform: 'PC',
+                completed: false,
+                players: []
+            };
+            appState.games.push(newGame);
+            saveData();
+            editingGameId = newId;
+        } else {
+            editingGameId = gameId;
+        }
+        renderGamesView(); // Re-render to show the form
     }
 
     function saveGame(gameData, gameId = null) {
@@ -517,6 +678,51 @@ document.addEventListener('DOMContentLoaded', function() {
             appState.games.push({ id: newId, ...gameData });
         }
         saveData();
+        renderGamesList();
+    }
+
+    function editGameInline(gameId) {
+        editingGameId = gameId;
+        renderGamesList();
+    }
+
+    function saveGameInline(gameId) {
+        const titleInput = document.getElementById(`edit-game-title-${gameId}`);
+        const platformSelect = document.getElementById(`edit-game-platform-${gameId}`);
+        const completedCheckbox = document.getElementById(`edit-game-completed-${gameId}`);
+        
+        const title = titleInput.value.trim();
+        const platform = platformSelect.value;
+        const completed = completedCheckbox.checked;
+        
+        if (title === '') {
+            alert('El título del juego no puede estar vacío.');
+            return;
+        }
+        
+        // Obtener jugadores seleccionados
+        const selectedPlayers = [];
+        appState.players.forEach(player => {
+            const checkbox = document.getElementById(`game-player-${gameId}-${player.id}`);
+            if (checkbox && checkbox.checked) {
+                selectedPlayers.push(player.id);
+            }
+        });
+        
+        const gameData = {
+            title,
+            platform,
+            completed,
+            players: selectedPlayers
+        };
+        
+        saveGame(gameData, gameId);
+        editingGameId = null;
+        renderGamesList();
+    }
+
+    function cancelEditGame() {
+        editingGameId = null;
         renderGamesList();
     }
 
@@ -628,13 +834,21 @@ document.addEventListener('DOMContentLoaded', function() {
     window.renderPlayersView = renderPlayersView;
     window.renderGamesView = renderGamesView;
     window.renderSettings = renderSettings;
-    window.openPlayerForm = openPlayerForm;
-    window.editPlayer = editPlayer;
-    window.deletePlayer = deletePlayer;
-    window.openGameForm = openGameForm;
-    window.editGame = editGame;
-    window.deleteGame = deleteGame;
     window.changePassword = changePassword;
     window.exportData = exportData;
     window.importData = importData;
+    
+    // Funciones para jugadores
+    window.addPlayer = addPlayer;
+    window.deletePlayer = deletePlayer;
+    window.editPlayerInline = editPlayerInline;
+    window.savePlayerInline = savePlayerInline;
+    window.cancelEditPlayer = cancelEditPlayer;
+    
+    // Funciones para juegos
+    window.openGameForm = openGameForm;
+    window.deleteGame = deleteGame;
+    window.editGameInline = editGameInline;
+    window.saveGameInline = saveGameInline;
+    window.cancelEditGame = cancelEditGame;
 });
